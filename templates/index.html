@@ -1,0 +1,163 @@
+<!doctype html>
+<html>
+<head>
+    <title>Local File Sharing</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/resumablejs@1.1.0/resumable.min.js"></script>
+    <style>
+        body { padding: 20px; }
+        .upload-form { margin: 20px 0; }
+        .progress { display: none; margin-top: 10px; }
+        .file-upload { margin-bottom: 20px; }
+        .alert { display: none; margin-top: 10px; }
+        .speed-info {
+            margin-top: 10px;
+            display: none;
+        }
+        .upload-stats {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">Local File Sharing</h1>
+        
+        <div class="upload-form">
+            <h2>Upload a file</h2>
+            <div class="file-upload">
+                <button type="button" class="btn btn-primary" id="browseButton">Select File</button>
+                <div class="progress mt-2" style="height: 25px;">
+                    <div class="progress-bar" role="progressbar" style="width: 0%;">0%</div>
+                </div>
+                <div class="speed-info">
+                    <div class="upload-stats">
+                        <div>Transfer Speed: <span id="speedDisplay">0 MB/s</span></div>
+                        <div>Uploaded: <span id="uploadedDisplay">0 MB</span> / <span id="totalDisplay">0 MB</span></div>
+                        <div>Estimated Time: <span id="timeDisplay">calculating...</span></div>
+                    </div>
+                </div>
+                <div class="alert alert-danger" role="alert"></div>
+            </div>
+        </div>
+
+        <div class="files-list">
+            <h2>Uploaded Files</h2>
+            {% if files %}
+                <ul class="list-group">
+                {% for filename in files %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ filename }}
+                        <div>
+                            <span class="badge bg-primary rounded-pill me-2">{{ '{:.1f}'.format(file_sizes[filename] / 1024 / 1024) }} MB</span>
+                            <a href="/uploads/{{ filename }}" class="btn btn-sm btn-success">Download</a>
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p>No files uploaded yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        let r = new Resumable({
+            target: '/upload',
+            chunkSize: 5*1024*1024, // Increased to 5MB chunks (was 1MB)
+            simultaneousUploads: 6,  // Increased parallel uploads (was 4)
+            testChunks: true,
+            maxChunkRetries: 3,
+            throttleProgressCallbacks: 1,
+            chunkRetryInterval: 2000,
+            query: {
+                upload_token: Date.now()
+            }
+        });
+
+        // Transfer speed calculation variables
+        let lastUploadedBytes = 0;
+        let lastTime = Date.now();
+        let speedUpdateInterval;
+
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 MB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        function formatTime(seconds) {
+            if (seconds === Infinity || isNaN(seconds)) return 'calculating...';
+            if (seconds < 60) return Math.round(seconds) + ' seconds';
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.round(seconds % 60);
+            return `${minutes}m ${remainingSeconds}s`;
+        }
+
+        function updateSpeed() {
+            const currentTime = Date.now();
+            const timeElapsed = (currentTime - lastTime) / 1000; // Convert to seconds
+            const uploadedBytes = r.progress() * r.getSize();
+            const bytesDelta = uploadedBytes - lastUploadedBytes;
+            const speed = bytesDelta / timeElapsed; // Bytes per second
+
+            // Update speed display
+            document.getElementById('speedDisplay').textContent = formatSize(speed) + '/s';
+            document.getElementById('uploadedDisplay').textContent = formatSize(uploadedBytes);
+            document.getElementById('totalDisplay').textContent = formatSize(r.getSize());
+
+            // Calculate estimated time remaining
+            const remainingBytes = r.getSize() - uploadedBytes;
+            const estimatedSeconds = speed > 0 ? remainingBytes / speed : 0;
+            document.getElementById('timeDisplay').textContent = formatTime(estimatedSeconds);
+
+            // Update for next calculation
+            lastUploadedBytes = uploadedBytes;
+            lastTime = currentTime;
+        }
+
+        r.assignBrowse(document.getElementById('browseButton'));
+
+        r.on('fileAdded', function(file) {
+            document.querySelector('.progress').style.display = 'block';
+            document.querySelector('.speed-info').style.display = 'block';
+            document.querySelector('.alert').style.display = 'none';
+            
+            // Reset speed calculation variables
+            lastUploadedBytes = 0;
+            lastTime = Date.now();
+            
+            // Start speed updates
+            speedUpdateInterval = setInterval(updateSpeed, 1000);
+            
+            r.upload();
+        });
+
+        r.on('fileSuccess', function(file, message) {
+            clearInterval(speedUpdateInterval);
+            location.reload();
+        });
+
+        r.on('fileError', function(file, message) {
+            clearInterval(speedUpdateInterval);
+            document.querySelector('.alert').style.display = 'block';
+            document.querySelector('.alert').textContent = 'Error uploading file: ' + message;
+        });
+
+        r.on('progress', function() {
+            const progress = Math.floor(r.progress() * 100);
+            document.querySelector('.progress-bar').style.width = progress + '%';
+            document.querySelector('.progress-bar').textContent = progress + '%';
+        });
+
+        r.on('cancel', function() {
+            clearInterval(speedUpdateInterval);
+        });
+
+        r.on('error', function(message, file) {
+            clearInterval(speedUpdateInterval);
+        });
+    </script>
+</body>
+</html> 

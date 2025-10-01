@@ -1,0 +1,39 @@
+Project: Local Network Data Sharing Server — file/data transfer between devices on the same network.
+
+Goal: Create a simple server that listens on a port, allows devices to upload and download files or send arbitrary data within the local network.
+
+Context for AI:
+I am building a local network data sharing app.
+
+The app should run on my machine initially, accessible via localhost on a specific port.
+
+It should have a simple interface (can be web-based) to upload and download files.
+
+I want to eventually allow other devices on my local Wi-Fi to connect and share data with my server.
+
+The first step is a simple Python Flask server that supports file uploads and downloads.
+
+Next, I want to explore socket programming for direct device-to-device communication.
+
+Later, I want to add security features like authentication.
+
+I want help writing, debugging, and improving code snippets.
+
+I need explanations about networking basics, socket programming, HTTP servers, and client-server models.
+
+I might also want help with deploying or running this app on different OSes (Windows/Linux/Mac).
+
+Example Requests I might ask AI:
+“Help me write a Python Flask app to upload/download files locally.”
+
+“Explain how to open a TCP socket connection in Python and send data between two devices.”
+
+“How to find my PC’s local IP to connect from another device?”
+
+“Suggest ways to secure my local server with a password.”
+
+“Generate a minimal React frontend for uploading files to my Flask backend.”
+
+“Help me debug a ‘connection refused’ error when trying to connect from another device.”
+
+“Explain differences between HTTP and raw sockets for this project.”
